@@ -291,17 +291,40 @@ def alpha(table: biom.Table):
     if table.is_empty():
         raise ValueError("The provided table object is empty")
     alpha_diversities = []
+    alpha_skbio_format = ()
+    counts = table.matrix_data.toarray().astype(float).T
+    sample_ids = table.ids(axis='sample')
     for metric in ALPHA_DIVERSITY_METHODS:
-        counts = table.matrix_data.toarray().astype(float).T
-        sample_ids = table.ids(axis='sample')
-
         result = skbio.diversity.alpha_diversity(metric=metric, counts=counts,
                                                  ids=sample_ids)
         result.name = metric
         print(result)
-        print(type(result))
+        print('--------------------')
+        # print(result.keys())
+        print(result.transpose())
         alpha_diversities.append(result)
-    return alpha_diversities
+    res = agregate_results(alpha_diversities, sample_ids)
+    sample_metadata = dict(zip(table.ids(), table.metadata()))
+    kek = _format_alpha_results(res, sample_metadata)
+    # print('00000000000000000000')
+    # print(alpha_diversities)
+    # print('00000000000000000')
+    return kek
+
+from numpy import asarray
+
+def agregate_results(table, sample_ids):
+    diversity_aggregated = []
+    alpha_diversity_results = asarray(table).transpose()
+    diversity_aggregated.append(alpha_diversity_results)
+    diversity_aggregated.append(sample_ids)
+    diversity_aggregated.append(ALPHA_DIVERSITY_METHODS)
+    return tuple(diversity_aggregated)
+
+
+
+
+
 
 
 def _format_alpha_results(result, sample_metadata=None):
@@ -335,6 +358,8 @@ def _format_alpha_results(result, sample_metadata=None):
     return dict(data=sample_list, methods=calc_names, labels=labels_mapping)
 
 res = alpha(input_biom)
+print(res)
+# agregate_results(res)
 # r1 = _format_alpha_results(input_biom, sample_metadata=)
 
 # chao1_div = alpha_diversity('chao1', data.transpose()[2])

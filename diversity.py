@@ -81,12 +81,12 @@ def alpha(table: biom.Table, metric: str):
 print(alpha())
 
 
-# (array([[ 1.        ,  0.        , -0.        ],
-#        [ 1.        ,  0.        , -0.        ],
-#        [42.        ,  0.97297728,  5.24199479],
-#        [42.        ,  0.97297728,  5.24199479]]), array([u'test.fasta', u'GCF_000861845.1_ViralProj15432_genomic.fna',
-#        u'virus_setB_10K.fastq.fasta', 'virus_setB_10K.fastq.fasta (1)'],
-#       dtype=object), ['chao1', 'simpson', 'shannon'])
+(array([[ 1.        ,  0.        , -0.        ],
+       [ 1.        ,  0.        , -0.        ],
+       [42.        ,  0.97297728,  5.24199479],
+       [42.        ,  0.97297728,  5.24199479]]), array([u'test.fasta', u'GCF_000861845.1_ViralProj15432_genomic.fna',
+       u'virus_setB_10K.fastq.fasta', 'virus_setB_10K.fastq.fasta (1)'],
+      dtype=object), ['chao1', 'simpson', 'shannon'])
 
 # {'labels': {u'label0': u'No Label'},
 # 'data':
