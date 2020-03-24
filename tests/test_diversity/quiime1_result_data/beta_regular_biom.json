@@ -1,0 +1,1 @@
+{"nodes": {"vag_intr_SRS015071.fasta": {"label": "label0"}, "vag_intr_SRS014465.fasta": {"label": "label0"}}, "labels": {"label0": "No Label"}, "data": [{"source": "vag_intr_SRS014465.fasta", "values": {"abund_jaccard": 0.08364653659557564, "bray_curtis": 0.6689764585527527}, "target": "vag_intr_SRS015071.fasta"}], "methods": ["abund_jaccard", "bray_curtis"], "version": 1}
