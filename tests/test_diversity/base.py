@@ -1,90 +1,77 @@
-import os
-import logging
 import json
-import csv
-import shutil
+import os
 import unittest
+from enum import Enum
 
-MAPPING = {
-    'phylogeny_analysis_tree.xml': 'phylogeny',
-    'taxonomy_analysis_tree.xml': 'taxonomy',
-}
-
-LOGGER = logging.getLogger(__name__)
-logging.basicConfig()
+from .table_data.tables import REGULAR_BIOM_SAMPLE_META, REGULAR_BIOM_TABLE
 
 
-class
+class DiversityResult(Enum):
+    DATA = 'data'
+    SAMPLE_NAME = 'sample_name'
+    VALUES = 'values'
+    TARGET = 'target'
+    SOURCE = 'source'
+    LABELS = 'labels'
+    NODES = 'nodes'
+
 
 class BaseDiversityTestCase(unittest.TestCase):
-    out_dir = 'tests/test_diversity/tmp_output'
-    test_data_dir = 'tests/test_diversity/dummy_data'
-    compare_data_dir = 'tests/test_diversity/to_compare'
+    compare_results_dir = '/home/ovasylenko/PycharmProjects/training/tests/test_diversity/quiime1_result_data'
+    # compare_results_dir = 'tests/test_diversity/quiime1_result_data'
+    ALPHA_PRECISION_PARAMETER = 2
+    BETA_PRECISION_PARAMETER = 1
 
-    def setUp(self):
-        os.makedirs(self.out_dir)
+    def get_biom_table(self):
+        return REGULAR_BIOM_TABLE
 
-    def get_biom_file(self, biom_file):
-        return os.path.join(self.test_data_dir, '{}.json'.format(biom_file))
+    def get_sample_meta(self):
+        return REGULAR_BIOM_SAMPLE_META
 
-    def get_tsv_file(self, tsv_name):
-        return os.path.join(self.compare_data_dir, '{}.tsv'.format(tsv_name))
+    def compare_alpha_sk_to_quime(self, skbio_output, quime_output):
+        quime_output = os.path.join(self.compare_results_dir, quime_output)
 
-    def read_tsv_for_comparation(self, input_file):
-        data = dict()
-        with open(input_file, 'rb') as tsv_file:
-            tsv_reader = csv.reader(tsv_file, delimiter='\t')
-            col_names = tsv_reader.next()[1:]
-            for row in tsv_reader:
-                LOGGER.debug(row)
-                row_name = row[0]
-                values = row[1:]
-                for value_index, value in enumerate(values):
-                    data[(row_name, col_names[value_index])] = float(value) if value != 'nan' else 0
-        return data
-
-    def compare_alpha(self, json_out, original_output):
-        tsv_data = self.read_tsv_for_comparation(original_output)
-        with open(json_out) as file_:
+        with open(quime_output) as file_:
             json_data = json.loads(file_.read())
-
-            for value in json_data.get('data'):
-                sample_name = value.get('sample_name')
-                sample_values = value.get('values')
-
+            for value in json_data.get(DiversityResult.DATA.value):
+                for sk_value in skbio_output.get(DiversityResult.DATA.value):
+                    if value.get(DiversityResult.SAMPLE_NAME.value) == sk_value.get(DiversityResult.SAMPLE_NAME.value):
+                        sample_values = value.get(DiversityResult.VALUES.value)
+                        skbio_sample_values = sk_value.get(DiversityResult.VALUES.value)
+                        break
                 for key, v in sample_values.items():
-                    self.assertAlmostEquals(v, tsv_data.get((sample_name, key)), 4)
+                    self.assertAlmostEqual(v, skbio_sample_values[key], self.ALPHA_PRECISION_PARAMETER)
 
-    def compare_beta(self, json_out, original_output_dir, file_name):
-        tsv_data = {method: self.read_tsv_for_comparation(os.path.join(original_output_dir,
-                                                                       '{}_{}.txt'.format(method, file_name)))
-                    for method in ['abund_jaccard', 'bray_curtis']}
+    def compare_beta_sk_to_quime(self, skbio_output, quime_output):
+        quime_output = os.path.join(self.compare_results_dir, quime_output)
 
-        with open(json_out) as file_:
+        with open(quime_output) as file_:
             json_data = json.loads(file_.read())
-
-            for value in json_data.get('data'):
-                target = value.get('target')
-                source = value.get('source')
-                sample_values = value.get('values')
-
+            for value in json_data.get(DiversityResult.DATA.value):
+                for sk_value in skbio_output.get(DiversityResult.DATA.value):
+                    if value.get(DiversityResult.TARGET.value) == sk_value.get(DiversityResult.TARGET.value) \
+                            and value.get(DiversityResult.SOURCE.value) == sk_value.get(DiversityResult.SOURCE.value):
+                        skbio_sample_values = sk_value.get(DiversityResult.VALUES.value)
+                        sample_values = value.get(DiversityResult.VALUES.value)
+                        break
                 for key, v in sample_values.items():
-                    self.assertAlmostEquals(v, tsv_data[key][(target, source)], 4)
+                    self.assertAlmostEqual(skbio_sample_values[key], v, delta=self.BETA_PRECISION_PARAMETER)
 
-    def compare_pcoa(self, tsv_path, pcoa_path, method):
-        tsv_data = self.read_tsv_for_comparation(tsv_path)
+    def check_labels(self, skbio_output, quime_output):
+        """
+        Test if labels for samples in beta diversity matrix are assigned correctly.
 
-        with open(pcoa_path) as pcoa_file:
-            data = json.loads(pcoa_file.read())
-            samples_list = data.get('data')
+        Input - Usual biom
+        Expected - label id in beta matrix should be the same as in biom
+        """
+        quime_output = os.path.join(self.compare_results_dir, quime_output)
 
-        for sample in samples_list:
-            sample_name = sample.get('sample_name')
-            values_to_compare = sample.get('values')[method]
-
-            for i, value in enumerate(values_to_compare):
-                key = (str(sample_name), str(i))
-                self.assertAlmostEquals(tsv_data[key], value, 4)
-
-    def tearDown(self):
-        shutil.rmtree(self.out_dir)
+        with open(quime_output) as file_:
+            beta_raw = file_.read()
+            output_beta_matrix = json.loads(beta_raw)
+            output_beta_nodes = output_beta_matrix.get(DiversityResult.NODES.value)
+            output_beta_labels = output_beta_matrix.get(DiversityResult.LABELS.value)
+        sk_labels = skbio_output.get(DiversityResult.LABELS.value)
+        sk_nodes = skbio_output.get(DiversityResult.NODES.value)
+        assert output_beta_labels == sk_labels
+        assert output_beta_nodes == sk_nodes
